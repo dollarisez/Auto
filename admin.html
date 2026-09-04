@@ -1,1 +1,84 @@
-<!doctype html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin</title><link rel="stylesheet" href="style.css"></head><body class="page"><header><strong>Admin Dashboard</strong><button id="logout">Logout</button></header><main class="panel"><h2>Kelola User</h2><form id="add"><input id="newUser" placeholder="Nama user" required><input id="newPass" type="password" placeholder="Password" required><button>Tambah User</button></form><div id="users"></div><hr><h2>URL Iframe</h2><form id="iframe"><input id="url" type="url" placeholder="https://contoh.com" required><button>Simpan URL</button></form><hr><h2>Ganti Password Admin</h2><form id="adminpass"><input id="adminPass" type="password" placeholder="Password baru" required><button>Ganti Password</button></form><p id="msg"></p></main><script>const msg=document.getElementById('msg');async function init(){const r=await fetch('/api/me');const d=await r.json();if(!d.authenticated||d.user.role!=='admin')return location='/';loadUsers()}async function loadUsers(){const r=await fetch('/api/admin/users');const a=await r.json();document.getElementById('users').innerHTML=a.map(u=>`<div class="user"><b>${u.username}</b> <small>${u.role}</small> <button onclick="toggleUser(${u.id},${!u.active})">${u.active?'Nonaktifkan':'Aktifkan'}</button> ${u.role==='user'?`<button onclick="changePass(${u.id})">Ganti Password</button><button onclick="delUser(${u.id})">Hapus</button>`:''}</div>`).join('')}async function toggleUser(id,active){await fetch('/api/admin/users/'+id,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({active})});loadUsers()}async function changePass(id){const p=prompt('Password baru untuk user:');if(!p)return;const r=await fetch('/api/admin/users/'+id+'/password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p})});msg.textContent=r.ok?'Password user berhasil diganti':'Gagal mengganti password'}async function delUser(id){if(confirm('Hapus user ini?')){await fetch('/api/admin/users/'+id,{method:'DELETE'});loadUsers()}}document.getElementById('add').onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/admin/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:newUser.value,password:newPass.value})});msg.textContent=r.ok?'User dibuat':'Gagal membuat user';if(r.ok){e.target.reset();loadUsers()}};document.getElementById('iframe').onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/admin/iframe',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({url:url.value})});msg.textContent=r.ok?'URL iframe disimpan':'Gagal menyimpan URL'};document.getElementById('adminpass').onsubmit=async e=>{e.preventDefault();const me=await fetch('/api/me').then(r=>r.json());const users=await fetch('/api/admin/users').then(r=>r.json());const admin=users.find(u=>u.username===me.user.username);if(!admin)return;const r=await fetch('/api/admin/users/'+admin.id+'/password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:adminPass.value})});msg.textContent=r.ok?'Password admin berhasil diganti':'Gagal mengganti password';e.target.reset()};document.getElementById('logout').onclick=async()=>{await fetch('/api/logout',{method:'POST'});location='/'};init();</script></body></html>
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Automone — Admin Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-page">
+<header class="admin-header">
+  <div>
+    <div class="brand">AUTOMONE</div>
+    <div class="header-subtitle">Panel Administrasi</div>
+  </div>
+  <button id="logout" class="btn btn-outline">Keluar</button>
+</header>
+
+<main class="admin-main">
+  <section class="welcome">
+    <div>
+      <h1>Dashboard Admin</h1>
+      <p>Kelola pengguna dan pengaturan website dari satu tempat.</p>
+    </div>
+    <div class="status"><span></span> Sistem aktif</div>
+  </section>
+
+  <section class="stats">
+    <div class="stat-card"><div class="stat-icon">👥</div><div><small>Total User</small><strong id="totalUsers">0</strong></div></div>
+    <div class="stat-card"><div class="stat-icon">✓</div><div><small>User Aktif</small><strong id="activeUsers">0</strong></div></div>
+    <div class="stat-card"><div class="stat-icon">🔗</div><div><small>Iframe</small><strong>1</strong></div></div>
+  </section>
+
+  <div class="grid">
+    <section class="admin-card">
+      <div class="card-title"><div><h2>Kelola User</h2><p>Buat dan kelola akun pengguna.</p></div></div>
+      <form id="add" class="add-user-form">
+        <div><label for="newUser">Username</label><input id="newUser" placeholder="Contoh: user01" required></div>
+        <div><label for="newPass">Password</label><input id="newPass" type="password" placeholder="Minimal 8 karakter" minlength="8" required></div>
+        <button class="btn btn-primary" type="submit">+ Tambah User</button>
+      </form>
+      <div id="users" class="user-list"><div class="loading">Memuat user...</div></div>
+    </section>
+
+    <div class="side-column">
+      <section class="admin-card">
+        <div class="card-title"><div><h2>URL Iframe</h2><p>URL yang akan ditampilkan kepada semua user.</p></div></div>
+        <form id="iframe">
+          <label for="url">Alamat Iframe</label>
+          <input id="url" type="url" placeholder="https://contoh.com" required>
+          <button class="btn btn-primary" type="submit">Simpan URL</button>
+        </form>
+      </section>
+
+      <section class="admin-card">
+        <div class="card-title"><div><h2>Keamanan Admin</h2><p>Ubah password akun administrator.</p></div></div>
+        <form id="adminpass">
+          <label for="adminPass">Password Baru</label>
+          <input id="adminPass" type="password" placeholder="Minimal 8 karakter" minlength="8" required>
+          <button class="btn btn-secondary" type="submit">🔑 Ganti Password</button>
+        </form>
+      </section>
+    </div>
+  </div>
+  <div id="msg" class="message"></div>
+</main>
+
+<script>
+const msg=document.getElementById('msg');
+function showMsg(text,ok=false){msg.textContent=text;msg.className='message '+(ok?'success':'error');setTimeout(()=>msg.textContent='',4000)}
+async function init(){const r=await fetch('/api/me');const d=await r.json();if(!d.authenticated||d.user.role!=='admin')return location='/';loadUsers();loadIframe()}
+async function loadUsers(){const r=await fetch('/api/admin/users');const a=await r.json();if(!Array.isArray(a)){showMsg('Gagal memuat daftar user');return}document.getElementById('totalUsers').textContent=a.filter(u=>u.role==='user').length;document.getElementById('activeUsers').textContent=a.filter(u=>u.role==='user'&&u.active).length;const users=a.filter(u=>u.role==='user');document.getElementById('users').innerHTML=users.length?users.map(u=>`<div class="user-row"><div class="user-info"><div class="avatar">${u.username.charAt(0).toUpperCase()}</div><div><b>${escapeHtml(u.username)}</b><small>${u.active?'● Aktif':'● Nonaktif'}</small></div></div><div class="user-actions"><button class="mini ${u.active?'danger':'success-btn'}" onclick="toggleUser(${u.id},${!u.active})">${u.active?'Nonaktifkan':'Aktifkan'}</button><button class="mini" onclick="changePass(${u.id})">Password</button><button class="mini danger" onclick="delUser(${u.id})">Hapus</button></div></div>`).join(''):'<div class="empty">Belum ada user. Gunakan formulir di atas untuk membuat user pertama.</div>'}
+async function loadIframe(){const r=await fetch('/api/iframe');if(r.ok){const d=await r.json();document.getElementById('url').value=d.url||''}}
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+async function toggleUser(id,active){const r=await fetch('/api/admin/users/'+id,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({active})});showMsg(r.ok?(active?'User diaktifkan':'User dinonaktifkan'):'Gagal mengubah status',r.ok);if(r.ok)loadUsers()}
+async function changePass(id){const p=prompt('Masukkan password baru user (minimal 8 karakter):');if(!p)return;if(p.length<8)return showMsg('Password minimal 8 karakter');const r=await fetch('/api/admin/users/'+id+'/password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p})});showMsg(r.ok?'Password user berhasil diganti':'Gagal mengganti password',r.ok)}
+async function delUser(id){if(!confirm('Yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.'))return;const r=await fetch('/api/admin/users/'+id,{method:'DELETE'});showMsg(r.ok?'User berhasil dihapus':'Gagal menghapus user',r.ok);if(r.ok)loadUsers()}
+document.getElementById('add').onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/admin/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:newUser.value,password:newPass.value})});showMsg(r.ok?'User berhasil dibuat':'Gagal membuat user',r.ok);if(r.ok){e.target.reset();loadUsers()}}
+document.getElementById('iframe').onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/admin/iframe',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({url:url.value})});showMsg(r.ok?'URL iframe berhasil disimpan':'Gagal menyimpan URL',r.ok)}
+document.getElementById('adminpass').onsubmit=async e=>{e.preventDefault();const me=await fetch('/api/me').then(r=>r.json());const users=await fetch('/api/admin/users').then(r=>r.json());const admin=users.find(u=>u.username===me.user.username);if(!admin)return showMsg('Admin tidak ditemukan');const r=await fetch('/api/admin/users/'+admin.id+'/password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:adminPass.value})});showMsg(r.ok?'Password admin berhasil diganti.':'Gagal mengganti password',r.ok);if(r.ok)e.target.reset()}
+document.getElementById('logout').onclick=async()=>{await fetch('/api/logout',{method:'POST'});location='/'};
+init();
+</script>
+</body>
+</html>
