@@ -8,7 +8,20 @@ export async function onRequest(context) {
   async function createSession(user){const exp=Date.now()+8*60*60*1000;const payload=b64(JSON.stringify({id:user.id,role:user.role,exp}));const sig=await hmac(payload,env.SESSION_SECRET||'change-me');await db.prepare('INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,?)').bind(payload+'.'+sig,user.id,new Date(exp).toISOString()).run();return payload+'.'+sig}
   async function auth(){if(!token)return null;const p=token.split('.');if(p.length!==2)return null;if(await hmac(p[0],env.SESSION_SECRET||'change-me')!==p[1])return null;let x;try{x=JSON.parse(ub64(p[0]))}catch{return null}if(x.exp<Date.now())return null;return await db.prepare('SELECT id,username,role,active FROM users WHERE id=? AND active=1').bind(x.id).first()}
   async function admin(){const u=await auth();return u&&u.role==='admin'?u:null}
-  if(path==='setup'&&request.method==='POST'){if(!env.BOOTSTRAP_KEY||request.headers.get('X-Bootstrap-Key')!==env.BOOTSTRAP_KEY)return json({error:'Unauthorized'},401);const count=await db.prepare("SELECT COUNT(*) AS n FROM users WHERE role='admin'").first();if(Number(count.n)>0)return json({error:'Admin sudah dibuat'},409);const b=await body();if(!b.username||!b.password)return json({error:'Username dan password wajib diisi'},400);const hp=await hashPassword(b.password);await db.prepare("INSERT INTO users(username,password_hash,password_salt,role,active) VALUES(?,?,?,?,1)").bind(String(b.username).trim(),hp.hash,hp.salt,'admin').run();return json({ok:true})}
+  if(path==='setup'&&request.method==='POST'){
+    if(!env.BOOTSTRAP_KEY||request.headers.get('X-Bootstrap-Key')!==env.BOOTSTRAP_KEY)return json({error:'Unauthorized'},401);
+    try{
+      const count=await db.prepare("SELECT COUNT(*) AS n FROM users WHERE role='admin'").first();
+      if(Number(count.n)>0)return json({error:'Admin sudah dibuat'},409);
+      const b=await body();
+      if(!b.username||!b.password)return json({error:'Username dan password wajib diisi'},400);
+      const hp=await hashPassword(b.password);
+      await db.prepare("INSERT INTO users(username,password_hash,password_salt,role,active) VALUES(?,?,?,?,1)").bind(String(b.username).trim(),hp.hash,hp.salt,'admin').run();
+      return json({ok:true});
+    }catch(e){
+      return json({error:'Setup gagal: '+(e?.message||String(e))},500);
+    }
+  }
   if(path==='login'&&request.method==='POST'){const b=await body();if(!b.username||!b.password)return json({error:'Username dan password wajib diisi'},400);const u=await db.prepare('SELECT id,username,password_hash,password_salt,role,active FROM users WHERE username=?').bind(String(b.username).trim()).first();if(!u||!u.active)return json({error:'Login gagal'},401);const hp=await hashPassword(b.password,u.password_salt);if(hp.hash!==u.password_hash)return json({error:'Login gagal'},401);const t=await createSession(u);return new Response(JSON.stringify({ok:true,user:{username:u.username,role:u.role}}),{headers:{'content-type':'application/json','Set-Cookie':`session=${t}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`}})}
   if(path==='logout'&&request.method==='POST'){if(token)await db.prepare('DELETE FROM sessions WHERE token=?').bind(token).run();return new Response(JSON.stringify({ok:true}),{headers:{'content-type':'application/json','Set-Cookie':'session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'}})}
   if(path==='me'&&request.method==='GET'){const u=await auth();return json({authenticated:!!u,user:u?{username:u.username,role:u.role}:null})}
