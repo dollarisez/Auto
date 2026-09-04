@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Automone — Setup Admin</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;min-height:100vh;display:grid;place-items:center;color:#172033}.card{width:min(420px,92vw);background:#fff;padding:30px;border-radius:18px;box-shadow:0 12px 40px #0001}.logo{font-size:28px;font-weight:800;margin-bottom:8px}.sub{color:#687386;margin-bottom:24px}label{display:block;font-weight:700;margin:14px 0 7px}input{width:100%;padding:13px 14px;border:1px solid #d8deea;border-radius:10px;font-size:16px}button{width:100%;margin-top:22px;padding:14px;border:0;border-radius:10px;background:#111827;color:#fff;font-size:16px;font-weight:700;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.msg{margin-top:16px;padding:12px;border-radius:10px;display:none;white-space:pre-wrap}.ok{display:block;background:#eaf8ef;color:#176b35}.err{display:block;background:#fff0f0;color:#a52222}.note{font-size:12px;color:#7b8494;margin-top:18px;line-height:1.5}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">Automone</div>
+    <div class="sub">Buat akun administrator pertama</div>
+    <form id="form">
+      <label for="username">Username Admin</label>
+      <input id="username" autocomplete="username" required>
+      <label for="password">Password Admin</label>
+      <input id="password" type="password" autocomplete="new-password" minlength="8" required>
+      <label for="key">Bootstrap Key</label>
+      <input id="key" type="password" autocomplete="off" required>
+      <button id="btn" type="submit">Buat Admin</button>
+    </form>
+    <div id="msg" class="msg"></div>
+    <div class="note">Bootstrap Key hanya digunakan untuk membuat admin pertama. Jangan bagikan key, username, atau password kepada siapa pun.</div>
+  </main>
+<script>
+const form=document.getElementById('form'),btn=document.getElementById('btn'),msg=document.getElementById('msg');
+form.addEventListener('submit',async e=>{
+ e.preventDefault(); msg.className='msg'; msg.textContent=''; btn.disabled=true; btn.textContent='Memproses...';
+ try{
+  const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json','X-Bootstrap-Key':document.getElementById('key').value},body:JSON.stringify({username:document.getElementById('username').value.trim(),password:document.getElementById('password').value})});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error||('Gagal membuat admin (HTTP '+r.status+')'));
+  msg.className='msg ok'; msg.textContent='Admin berhasil dibuat. Mengarahkan ke halaman login...'; form.reset();
+  setTimeout(()=>location.href='/',1500);
+ }catch(err){msg.className='msg err';msg.textContent=err.message||'Terjadi kesalahan.';btn.disabled=false;btn.textContent='Buat Admin';}
+});
+</script>
+</body>
+</html>
