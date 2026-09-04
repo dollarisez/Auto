@@ -1,3 +1,3 @@
 const form=document.getElementById('loginForm');
 const msg=document.getElementById('msg');
-form.addEventListener('submit',async(e)=>{e.preventDefault();msg.textContent='Backend Cloudflare belum dikonfigurasi. Setelah Worker + D1 dibuat, form ini akan terhubung ke sistem login.';});
+form.addEventListener('submit',async e=>{e.preventDefault();msg.textContent='Memproses...';try{const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value,password:document.getElementById('password').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login gagal');location.href=d.user.role==='admin'?'/admin.html':'/dashboard.html';}catch(err){msg.textContent=err.message;}});
